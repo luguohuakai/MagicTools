@@ -25,3 +25,15 @@ if (!function_exists('L')) {
         error_log($msg, 3, __DIR__ . '/../../console/runtime/logs/' . $file_name . '_' . date('Y-m-d') . '.txt');
     }
 }
+
+if (!function_exists('C')) {
+    /**
+     * 快捷获取配置信息
+     * @param $str
+     * @return mixed
+     */
+    function C($str)
+    {
+        return Yii::$app->params[$str];
+    }
+}

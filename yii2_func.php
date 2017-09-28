@@ -11,6 +11,7 @@ require_once __DIR__ . '/common/function.php';
 
 if (!function_exists('L')) {
     /**
+     * 需要配置路径 不具有通用性
      * @param $msg
      * @param $file_name
      */
@@ -21,6 +22,6 @@ if (!function_exists('L')) {
             . "\r\n" . Yii::$app->controller->module->id . '/' . Yii::$app->controller->id . '/' . Yii::$app->controller->action->id
             . "\r\n输出信息:" . $msg
             . "\r\n\r\n";
-        error_log($msg, 3, __DIR__ . '/../../center/runtime/logs/' . $file_name . '_' . date('Y-m-d') . '.txt');
+        error_log($msg, 3, __DIR__ . '/../../console/runtime/logs/' . $file_name . '_' . date('Y-m-d') . '.txt');
     }
 }

@@ -107,6 +107,8 @@ if (!function_exists('get')) {
     {
         //初始化
         $ch = curl_init();
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// SSL证书认证
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);// SSL证书认证
         //设置选项，包括URL
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -129,6 +131,8 @@ if (!function_exists('post')) {
     function post($url, $post_data)
     {
         $ch = curl_init();
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// SSL证书认证
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);// SSL证书认证
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         // post数据

@@ -1,0 +1,87 @@
+介绍一下你对浏览器内核的理解(主要分成两部分：渲染引擎(layout engineer或Rendering Engine)和JS引擎)
+
+介绍js的基本数据类型(Undefined、Null、Boolean、Number、String)
+
+this对象的理解
+this总是指向函数的直接调用者（而非间接调用者）；
+如果有new关键字，this指向new出来的那个对象；
+在事件中，this指向触发这个事件的对象，特殊的是，IE中的attachEvent中的this总是指向全局对象Window；
+
+DOM怎样添加、移除、移动、复制、创建和查找节点
+// 创建新节点
+createDocumentFragment()    //创建一个DOM片段
+createElement()   //创建一个具体的元素
+createTextNode()   //创建一个文本节点
+// 添加、移除、替换、插入
+appendChild()
+removeChild()
+replaceChild()
+insertBefore() //在已有的子节点前插入一个新的子节点
+// 查找
+getElementsByTagName()    //通过标签名称
+getElementsByName()    //通过元素的Name属性的值(IE容错能力较强，会得到一个数组，其中包括id等于name值的)
+getElementById()    //通过元素Id，唯一性
+
+对JSON的了解
+JSON(JavaScript Object Notation) 是一种轻量级的数据交换格式。它是基于JavaScript的一个子集。数据格式简单, 易于读写, 占用带宽小
+
+你有哪些性能优化的方法？
+（1） 减少http请求次数：CSS Sprites, JS、CSS源码压缩、图片大小控制合适；网页Gzip，CDN托管，data缓存 ，图片服务器。
+（2） 前端模板 JS+数据，减少由于HTML标签导致的带宽浪费，前端用变量保存AJAX请求结果，每次操作本地变量，不用请求，减少请求次数
+（3） 用innerHTML代替DOM操作，减少DOM操作次数，优化javascript性能。
+（4） 当需要设置的样式很多时设置className而不是直接操作style。
+（5） 少用全局变量、缓存DOM节点查找的结果。减少IO读取操作。
+（6） 避免使用CSS Expression（css表达式)又称Dynamic properties(动态属性)。
+（7） 图片预加载，将样式表放在顶部，将脚本放在底部  加上时间戳。
+
+什么叫优雅降级和渐进增强
+优雅降级：Web站点在所有新式浏览器中都能正常工作，如果用户使用的是老式浏览器，则代码会检查以确认它们是否能正常工作。由于IE独特的盒模型布局问题，针对不同版本的IE的hack实践过优雅降级了,为那些无法支持功能的浏览器增加候选方案，使之在旧式浏览器上以某种形式降级体验却不至于完全失效.
+渐进增强：从被所有浏览器支持的基本功能开始，逐步地添加那些只有新式浏览器才支持的功能,向页面增加无害于基础浏览器的额外样式和功能的。当浏览器支持时，它们会自动地呈现出来并发挥作用
+
+线程与进程的区别
+
+如何实现浏览器内多个标签页之间的通信?
+调用localStorage、cookies等本地存储方式
+
+请描述一下 cookies，sessionStorage 和 localStorage 的区别？
+cookie在浏览器和服务器间来回传递。 sessionStorage和localStorage不会
+sessionStorage和localStorage的存储空间更大；
+sessionStorage和localStorage有更多丰富易用的接口；
+sessionStorage和localStorage各自独立的存储空间；
+localeStorage是持久化存储在客户端，只要用户不主动删除，就不会消失，sessionStorage也是存储在客户端，但是他的存在时间是一个回话，一旦浏览器的关于该回话的页面关闭了，sessionStorage就消失了
+
+谈一谈JavaScript作用域链
+
+如何理解JavaScript原型链
+
+ajax请求时，如何解释json数据
+使用eval parse,鉴于安全性考虑 使用parse更靠谱
+
+”==”和“===”的不同
+前者会自动转换类型，后者不会
+
+介绍下你最常用的框架
+
+说一下什么是JavaScript的同源策略
+
+websocket
+websocket是一种协议，可以让我们建立客户端到服务器端的全双工通信，这就意味着服务器端可以主动推送数据到客户端
+
+谈谈异步和同步
+
+var res=[];
+var str="我喜欢我可爱的女朋友，"；
+res.push(str);
+res.push("她叫喵喵，");
+res.push("她时而可爱，时而认真，");
+res.push("她那天真的笑声可以让人忘掉一切烦恼。");
+console.log(res.join(""));
+
+http状态码是表示服务器对请求的响应状态，主要分为以下几个部分
+1**：这类响应是临时响应，只包含状态行和某些可选的响应头信息，并以空行结束
+2**：表示请求成功，
+3**：表示重定向
+4**：表示客户端错误
+5**：表示服务器端错误
+
+xss，csrf的概念以及防范方法（跨站脚本攻击）（跨站请求伪造）

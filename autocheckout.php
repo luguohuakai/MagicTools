@@ -74,7 +74,7 @@ trait Tool
  * Date: 2017/12/27
  * Time: 17:14
  */
-class Run extends Conf
+class Git extends Conf
 {
     use Tool;
 
@@ -158,4 +158,4 @@ class Run extends Conf
 
 // 运行
 // 请放置于网站中能访问到的地方
-(new Run())->checkout();
+(new Git())->checkout();

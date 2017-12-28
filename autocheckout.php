@@ -12,8 +12,13 @@ class Conf
     protected $info_log = 'git/info'; // 检出时信息日志
     protected $branch = 'srun_box'; // 要检出的分支
     protected $git_path = '/usr/local/bin/git'; // git 所在绝对路径
+
     protected $is_send_out = false; // 是否发送到其它服务器
-    protected $servers = []; // 服务器列表
+    protected $servers = []; // 服务器列表 url
+
+    protected $is_prod = false; // 当前是否是生成环境
+    protected $prod_url = 'http://47.104.1.91/autocheckout.php';
+    protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"}
 }
 
 /**
@@ -45,7 +50,7 @@ trait Tool
 
     /**
      * @param $url
-     * @param array $post_data
+     * @param array|string $post_data
      * @return mixed
      */
     function post($url, $post_data)
@@ -99,7 +104,7 @@ class Git extends Conf
         if ($this->is_send_out) {
             if (!empty($this->servers)) {
                 foreach ($this->servers as $server) {
-                    $rs = $this->post($server, json_decode(file_get_contents('php://input'), true));
+                    $rs = $this->post($server, file_get_contents('php://input'));
                     if ($rs) {
                         $this->L(json_encode($rs), $this->info_log);
                     }
@@ -119,18 +124,39 @@ class Git extends Conf
             exit("you are not {$this->branch}");
         }
 
-        $output = '';
+        // 是否生产环境
+        try {
+            $commit_msg = $data->commits{0}->short_message;
+            if ($commit_msg) {
+                $commit_msg = json_decode($commit_msg);
+            }
+            if ($this->is_prod && $commit_msg->update_to_prod) {
+                goto begin;
+            } else {
+                if ($this->prod_url) {
+                    if ($commit_msg->update_to_prod) {
+                        // 发送到生产环境
+                        $this->post($this->prod_url, file_get_contents('php://input'));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $this->L($e->getMessage(), $this->error_log);
+        }
+
+        begin:
+        $output = [];
 //if (is_file($dir . $version)) {
         // 第二次及之后直接pull代码
         $command = "cd {$dir} && {$git_path} pull";
-        $output .= shell_exec($command);
+        $output[] = shell_exec($command);
         $this->L($command, $this->info_log);
 //} else {
         // 有确认 应该也可以解决
 //        // 第一次先克隆远程代码 切换到dev分支
-//        $output .= shell_exec("cd {$dir} && git clone {$data->repository->ssh_url} 2>&1");
+//        $output[] = shell_exec("cd {$dir} && git clone {$data->repository->ssh_url} 2>&1");
 //        $this->L("cd {$dir} && git clone {$data->repository->ssh_url} 2>&1",$this->file_name);
-//        $output .= shell_exec("cd {$dir}{$data->repository->name} && git -c core.quotepath=false -c log.showSignature=false checkout -b dev origin/dev 2>&1");
+//        $output[] = shell_exec("cd {$dir}{$data->repository->name} && git -c core.quotepath=false -c log.showSignature=false checkout -b dev origin/dev 2>&1");
 //        $this->L("cd {$dir}{$data->repository->name} && git -c core.quotepath=false -c log.showSignature=false checkout -b dev origin/dev 2>&1",$this->file_name);
 //}
 
@@ -158,4 +184,5 @@ class Git extends Conf
 
 // 运行
 // 请放置于网站中能访问到的地方
+// 置于网站80端口对应的根目录 确保根目录权限 777 (创建文件和目录)
 (new Git())->checkout();

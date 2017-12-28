@@ -18,7 +18,7 @@ class Conf
 
     protected $is_prod = false; // 当前是否是生成环境
     protected $prod_url = 'http://47.104.1.91/autocheckout.php';
-    protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"}
+    protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"} // 这个参数没用到
 }
 
 /**

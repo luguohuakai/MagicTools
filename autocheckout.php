@@ -6,12 +6,20 @@
 class Conf
 {
     protected $token = '2734&^YG^R%%*&G%R&*&G^J39d'; // 与git服务器验证的token
-    protected $dir = '/srun3/www/srun4-mgr/'; // 要检出或pull代码的地方
-    protected $version = '/srun3/www/srun4-mgr/version.ini'; // 检出完成后版本文件
     protected $error_log = 'git/error'; // 检出时错误日志
     protected $info_log = 'git/info'; // 检出时信息日志
-    protected $branch = 'srun_box'; // 要检出的分支
     protected $git_path = '/usr/local/bin/git'; // git 所在绝对路径
+
+    protected $dir = '/srun3/www/srun4-mgr/'; // 要检出或pull代码的地方
+    protected $version = '/srun3/www/srun4-mgr/version.ini'; // 检出完成后版本文件
+    protected $branch = 'srun_box'; // 要检出的分支
+
+    protected $projects = [
+        'srun_box' => [
+            'dir' => '/srun3/www/srun4-mgr/',
+            'version' => '/srun3/www/srun4-mgr/version.ini',
+        ],
+    ];
 
     protected $is_send_out = false; // 是否发送到其它服务器
     protected $servers = []; // 服务器列表 url
@@ -19,6 +27,8 @@ class Conf
     protected $is_prod = false; // 当前是否是生成环境
     protected $prod_url = 'http://47.104.1.91/autocheckout.php';
     protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"} // 这个参数没用到
+
+    protected $data; // 接收到的数据
 }
 
 /**
@@ -83,10 +93,25 @@ class Git extends Conf
 {
     use Tool;
 
+    public function __construct()
+    {
+        $this->data = json_decode(file_get_contents('php://input'));
+        if (!$this->data) exit;
+        // 验证token
+        $this->validateToken();
+        // 发送到其它服务器
+        $this->sendOut();
+        // 只处理push
+        $this->justDealPush();
+        // 检查当前分支是否需要处理
+        $this->isDealCurrBranch();
+        // 检查当前是否是生产环境
+        $this->isProd();
+    }
+
     // 自动检出
     public function checkout()
     {
-        $token = $this->token;
 // 要检出或pull代码的地方
         $dir = $this->dir;
         $version = $this->version;
@@ -94,57 +119,11 @@ class Git extends Conf
         $data = json_decode(file_get_contents('php://input'));
         $this->L(json_encode($data), $this->info_log);
 
-// 验证token
-        if ($data->token !== $token) {
-            $this->L('token error', $this->error_log);
-            exit('token error');
-        }
+        // 循环检出
+        // 先获取当前分支名称
+        foreach ($this->projects as $project) {
 
-        // 验证成功后是否发送到其它服务器
-        if ($this->is_send_out) {
-            if (!empty($this->servers)) {
-                foreach ($this->servers as $server) {
-                    $rs = $this->post($server, file_get_contents('php://input'));
-                    if ($rs) {
-                        $this->L(json_encode($rs), $this->info_log);
-                    }
-                }
-            }
         }
-
-// 只处理push
-        if ($data->event !== 'push') {
-            $this->L('you are not push', $this->error_log);
-            exit('you are not push');
-        }
-
-// 只处理srun_box分支
-        if (!preg_match("/{$this->branch}/", $data->ref)) {
-            $this->L("you are not {$this->branch}", $this->error_log);
-            exit("you are not {$this->branch}");
-        }
-
-        // 是否生产环境
-        try {
-            $commit_msg = $data->commits{0}->short_message;
-            if ($commit_msg) {
-                $commit_msg = json_decode($commit_msg);
-            }
-            if ($this->is_prod && $commit_msg->update_to_prod) {
-                goto begin;
-            } else {
-                if ($this->prod_url) {
-                    if ($commit_msg->update_to_prod) {
-                        // 发送到生产环境
-                        $this->post($this->prod_url, file_get_contents('php://input'));
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            $this->L($e->getMessage(), $this->error_log);
-        }
-
-        begin:
         $output = [];
 //if (is_file($dir . $version)) {
         // 第二次及之后直接pull代码
@@ -180,6 +159,81 @@ class Git extends Conf
         file_put_contents($version, $content);
         $this->L(json_encode($output), $this->info_log);
     }
+
+    // 验证token
+    private function validateToken()
+    {
+        if ($this->data->token !== $this->token) {
+            $this->L('token error', $this->error_log);
+            exit('token error');
+        }
+    }
+
+    // 验证成功后是否发送到其它服务器
+    private function sendOut()
+    {
+        if ($this->is_send_out) {
+            if (!empty($this->servers)) {
+                foreach ($this->servers as $server) {
+                    $rs = $this->post($server, file_get_contents('php://input'));
+                    if ($rs) {
+                        $this->L(json_encode($rs), $this->info_log);
+                    }
+                }
+            }
+        }
+    }
+
+    // 只处理push
+    private function justDealPush()
+    {
+        if ($this->data->event !== 'push') {
+            $this->L('you are not push', $this->error_log);
+            exit('you are not push');
+        }
+    }
+
+    // 检查当前分支是否需要处理
+    private function isDealCurrBranch()
+    {
+        $branches = array_keys($this->projects);
+        $branches_str = implode(',', $branches);
+        $ref_arr = explode('/', $this->data->ref);
+        $curr_branch_name = $ref_arr[count($ref_arr) - 1];
+        if (!in_array($curr_branch_name, $branches)) {
+            $this->L("you are not in these branches {$branches_str}", $this->error_log);
+            exit("you are not in these branches {$branches_str}");
+        } else {
+            return $curr_branch_name;
+        }
+    }
+
+    // 是否生产环境
+    private function isProd()
+    {
+        try {
+            $commit_msg = $this->data->commits{0}->short_message;
+            if ($commit_msg) {
+                $commit_msg = json_decode($commit_msg);
+            }
+            if ($this->is_prod && $commit_msg->update_to_prod) {
+//                goto begin;
+            } else {
+                if ($this->prod_url) {
+                    // 当前环境不是生产环境且有生产环境url才发送到生产环境
+                    if ($commit_msg->update_to_prod) {
+                        // 发送到生产环境
+                        $this->post($this->prod_url, file_get_contents('php://input'));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $this->L($e->getMessage(), $this->error_log);
+        }
+    }
+
+    // 验证分支
+//    private function accessBranch
 }
 
 // 运行

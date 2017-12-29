@@ -14,21 +14,28 @@ class Conf
     protected $version = '/srun3/www/srun4-mgr/version.ini'; // 检出完成后版本文件
     protected $branch = 'srun_box'; // 要检出的分支
 
+    // 按如下配置当前服务器要pull的仓库路径
     protected $projects = [
-        'srun_box' => [
-            'dir' => '/srun3/www/srun4-mgr/',
-            'version' => '/srun3/www/srun4-mgr/version.ini',
+        'srun_box' => [ // 分支名
+            'dir' => '/srun3/www/srun4-mgr/', // 仓库根目录
+            'version' => '/srun3/www/srun4-mgr/version.ini', // 版本文件生成位置
+        ],
+        'eduroam_local' => [ // 分支名
+            'dir' => '/srun3/www/eduroamlocal/', // 仓库根目录
+            'version' => '/srun3/www/eduroamlocal/version.ini', // 版本文件生成位置
+        ],
+        'eduroam分析' => [ // 分支名
+            'dir' => '/srun3/www/eduroamflr/', // 仓库根目录
+            'version' => '/srun3/www/eduroamflr/version.ini', // 版本文件生成位置
         ],
     ];
 
-    protected $is_send_out = false; // 是否发送到其它服务器
-    protected $servers = []; // 服务器列表 url
-
-    protected $is_prod = false; // 当前是否是生成环境
+    protected $is_prod = false; // 当前是否是生产环境
     protected $prod_url = 'http://47.104.1.91/autocheckout.php';
     protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"} // 这个参数没用到
 
-    protected $data; // 接收到的数据
+    protected $is_send_out = false; // 是否发送到其它服务器
+    protected $servers = []; // 服务器列表 url
 }
 
 /**
@@ -52,7 +59,6 @@ trait Tool
 
         $msg = date('Y-m-d H:i:s')
             . "\r\n" . $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']
-            . "\r\n" . 'module' . '/' . 'controller' . '/' . 'action'
             . "\r\n输出信息:" . $msg
             . "\r\n\r\n";
         error_log($msg, 3, $log_path_and_file . '_' . date('Y-m-d') . '.txt');
@@ -93,6 +99,9 @@ class Git extends Conf
 {
     use Tool;
 
+    protected $data; // 接收到的数据
+    protected $curr_branch_name = ''; // 当前推送的分支
+
     public function __construct()
     {
         $this->data = json_decode(file_get_contents('php://input'));
@@ -104,7 +113,7 @@ class Git extends Conf
         // 只处理push
         $this->justDealPush();
         // 检查当前分支是否需要处理
-        $this->isDealCurrBranch();
+        $this->curr_branch_name = $this->isDealCurrBranch();
         // 检查当前是否是生产环境
         $this->isProd();
     }
@@ -112,26 +121,23 @@ class Git extends Conf
     // 自动检出
     public function checkout()
     {
-// 要检出或pull代码的地方
-        $dir = $this->dir;
-        $version = $this->version;
+        // 要检出或pull代码的地方
         $git_path = $this->git_path;
-        $data = json_decode(file_get_contents('php://input'));
-        $this->L(json_encode($data), $this->info_log);
+        $this->L(json_encode($this->data), $this->info_log);
 
-        // 循环检出
-        // 先获取当前分支名称
-        foreach ($this->projects as $project) {
-
-        }
-        $output = [];
+        // 检出
+        if ($this->curr_branch_name) {
+            $dir = $this->projects[$this->curr_branch_name]['dir'];
+            $version = $this->projects[$this->curr_branch_name]['version'];
+            // 拉代码
+            $output = [];
 //if (is_file($dir . $version)) {
-        // 第二次及之后直接pull代码
-        $command = "cd {$dir} && {$git_path} pull";
-        $output[] = shell_exec($command);
-        $this->L($command, $this->info_log);
+            // 第二次及之后直接pull代码
+            $command = "cd {$dir} && {$git_path} pull";
+            $output[] = shell_exec($command);
+            $this->L($command, $this->info_log);
 //} else {
-        // 有确认 应该也可以解决
+            // 有确认 应该也可以解决
 //        // 第一次先克隆远程代码 切换到dev分支
 //        $output[] = shell_exec("cd {$dir} && git clone {$data->repository->ssh_url} 2>&1");
 //        $this->L("cd {$dir} && git clone {$data->repository->ssh_url} 2>&1",$this->file_name);
@@ -139,25 +145,24 @@ class Git extends Conf
 //        $this->L("cd {$dir}{$data->repository->name} && git -c core.quotepath=false -c log.showSignature=false checkout -b dev origin/dev 2>&1",$this->file_name);
 //}
 
-// 生成版本信息
-        $git_version_commit_num = shell_exec("cd {$dir} && {$git_path} rev-list HEAD | wc -l | awk '{print $1}'");
-        $git_version_hash_min = shell_exec("cd {$dir} && {$git_path} rev-list HEAD --abbrev-commit --max-count=1");
-        $git_version_hash_max = shell_exec("cd {$dir} && {$git_path} rev-parse HEAD");
+            // 生成版本信息
+            $git_version_commit_num = shell_exec("cd {$dir} && {$git_path} rev-list HEAD | wc -l | awk '{print $1}'");
+            $git_version_hash_min = shell_exec("cd {$dir} && {$git_path} rev-list HEAD --abbrev-commit --max-count=1");
+            $git_version_hash_max = shell_exec("cd {$dir} && {$git_path} rev-parse HEAD");
+            $arr['author'] = 'DM';
+            $arr['update_time'] = date('Y-m-d H:i:s');
+            $arr['git_version_commit_num'] = trim($git_version_commit_num);
+            $arr['git_version_hash_min'] = trim($git_version_hash_min);
+            $arr['git_version_hash_max'] = trim($git_version_hash_max);
+            $content = '';
+            foreach ($arr as $k => $v) {
+                $content .= "{$k}={$v}\r\n";
+            }
 
-        $arr['author'] = 'DM';
-        $arr['update_time'] = date('Y-m-d H:i:s');
-        $arr['git_version_commit_num'] = trim($git_version_commit_num);
-        $arr['git_version_hash_min'] = trim($git_version_hash_min);
-        $arr['git_version_hash_max'] = trim($git_version_hash_max);
-        $content = '';
-
-        foreach ($arr as $k => $v) {
-            $content .= "{$k}={$v}\r\n";
+            $this->L($content, $this->info_log);
+            file_put_contents($version, $content);
+            $this->L(json_encode($output), $this->info_log);
         }
-
-        $this->L($content, $this->info_log);
-        file_put_contents($version, $content);
-        $this->L(json_encode($output), $this->info_log);
     }
 
     // 验证token
@@ -211,6 +216,8 @@ class Git extends Conf
     // 是否生产环境
     private function isProd()
     {
+        // 在commit && push 代码时这样填写提交到生产环境
+        // {"commit_msg":"xxxx","update_to_prod":"1"}
         try {
             $commit_msg = $this->data->commits{0}->short_message;
             if ($commit_msg) {
@@ -231,9 +238,6 @@ class Git extends Conf
             $this->L($e->getMessage(), $this->error_log);
         }
     }
-
-    // 验证分支
-//    private function accessBranch
 }
 
 // 运行

@@ -10,10 +10,6 @@ class Conf
     protected $info_log = 'git/info'; // 检出时信息日志
     protected $git_path = '/usr/local/bin/git'; // git 所在绝对路径
 
-    protected $dir = '/srun3/www/srun4-mgr/'; // 要检出或pull代码的地方
-    protected $version = '/srun3/www/srun4-mgr/version.ini'; // 检出完成后版本文件
-    protected $branch = 'srun_box'; // 要检出的分支
-
     // 按如下配置当前服务器要pull的仓库路径
     protected $projects = [
         'srun_box' => [ // 分支名
@@ -31,8 +27,9 @@ class Conf
     ];
 
     protected $is_prod = false; // 当前是否是生产环境
-    protected $prod_url = 'http://47.104.1.91/autocheckout.php';
-    protected $update_to_prod = ''; // 生产环境检出标识 {"commit_msg":"xxxx","update_to_prod":"1"} // 这个参数没用到
+    protected $is_send_to_prod = false; // 是否允许发送到生产环境
+    protected $prod_url = 'http://47.104.1.91/autocheckout.php'; // 生产环境url
+    protected $update_to_prod = ''; // 生产环境检出标识切记json为双引号 {"commit_msg":"xxxx","update_to_prod":"1"} // 这个参数没用到
 
     protected $is_send_out = false; // 是否发送到其它服务器
     protected $servers = []; // 服务器列表 url
@@ -226,7 +223,7 @@ class Git extends Conf
             if ($this->is_prod && $commit_msg->update_to_prod) {
 //                goto begin;
             } else {
-                if ($this->prod_url) {
+                if ($this->is_send_to_prod && $this->prod_url) {
                     // 当前环境不是生产环境且有生产环境url才发送到生产环境
                     if ($commit_msg->update_to_prod) {
                         // 发送到生产环境
@@ -237,6 +234,12 @@ class Git extends Conf
         } catch (\Exception $e) {
             $this->L($e->getMessage(), $this->error_log);
         }
+    }
+
+    public function __destruct()
+    {
+        $this->L('======================================================================================================================================================================================',$this->info_log);
+        $this->L('======================================================================================================================================================================================',$this->error_log);
     }
 }
 

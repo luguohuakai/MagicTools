@@ -142,7 +142,7 @@ if (!function_exists('get')) {
             foreach ($params as $key => $value) {
                 $url = $url . $key . "=" . $value . "&";
             }
-            $length = count($url);
+            $length = mb_strlen($url);
             if ($url[$length - 1] == '&') {
                 $url = substr($url, 0, $length - 1);
             }

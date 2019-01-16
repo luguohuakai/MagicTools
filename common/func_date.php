@@ -6,14 +6,10 @@
  * Time: 13:46
  */
 
-function the_last_day_of_this_month(){
-    return date('Y-m-d H:i:s',strtotime(date('Y-m',strtotime('+1 month'))) - 1);
-}
-
 if (!function_exists('humanity_time')) {
     /**
      * @param int $timestamp 时间戳
-     * @return string
+     * @return string 返回更人性化时间
      */
     function humanity_time($timestamp)
     {
@@ -57,6 +53,7 @@ if (!function_exists('magic_time')) {
      * 'this_year_end',
      * @param string $what 要转换的时间字符串
      * @return bool|false|int
+     * @throws Exception
      */
     function magic_time($what)
     {
@@ -128,6 +125,23 @@ if (!function_exists('magic_time')) {
                 return strtotime(date(date('Y') + 1 . '0101')) - 1;
             default:
                 return false;
+        }
+    }
+}
+
+if (!function_exists('date_simple')) {
+    /**
+     * @param int|bool $timeStamp 默认当前时间
+     * @param bool $short 是否包含时分秒
+     * @return false|string
+     */
+    function date_simple($timeStamp = false, $short = false)
+    {
+        if ($timeStamp === false) $timeStamp = time();
+        if ($short) {
+            return date('Y-m-d', $timeStamp);
+        } else {
+            return date('Y-m-d H:i:s', $timeStamp);
         }
     }
 }

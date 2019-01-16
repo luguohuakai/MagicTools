@@ -17,39 +17,41 @@ foreach ($files as $file) {
 if (!function_exists('dd')) {
     /**
      * 调试输出神器
-     * @param $var
+     * @param string $var
+     * @param bool $stop 是否截断(die)
      */
-    function dd($var = '')
+    function dd($var = '', $stop = true)
     {
-        if ($var === false) die('bool false');
-        if ($var === true) die('bool true');
-        if ($var === null) die('null');
-        if ($var === 0) die('int 0');
-        if ($var === 0.0) die('float 0.0');
-        if (is_string($var) and trim($var) === '') die('string ""');
-        echo '<pre>';
-        print_r($var);
-        die('</pre>');
-    }
-}
-
-if (!function_exists('Rds')) {
-    /**
-     * 快速连接redis
-     * @param int $index
-     * @param int $port
-     * @param string $host
-     * @param string $pass
-     * @return Redis
-     */
-    function Rds($index = 0, $port = 6379, $host = 'localhost', $pass = '')
-    {
-        $rds = new \Redis();
-        $rds->connect($host, $port);
-        if ($pass) $rds->auth($pass);
-        $rds->select($index);
-
-        return $rds;
+        if ($var === false) {
+            if ($stop) {
+                die('bool false');
+            } else {
+                echo 'bool false';
+            }
+        }
+        if ($var === null) {
+            if ($stop) {
+                die('null');
+            } else {
+                echo 'null';
+            }
+        }
+        if (is_string($var) and trim($var) === '') {
+            if ($stop) {
+                die('string ""');
+            } else {
+                echo 'string ""';
+            }
+        }
+        if ($stop) {
+            echo '<pre>';
+            print_r($var);
+            die('</pre>');
+        } else {
+            echo '<pre>';
+            print_r($var);
+            echo '</pre>';
+        }
     }
 }
 
@@ -65,12 +67,32 @@ if (!function_exists('alert')) {
     }
 }
 
-if (!function_exists('export_csv')) {
+if (!function_exists('rds')) {
+    /**
+     * 快速连接redis
+     * @param int $index
+     * @param int $port
+     * @param string $host
+     * @param string $pass
+     * @return Redis
+     */
+    function rds($index = 0, $port = 6379, $host = 'localhost', $pass = '')
+    {
+        $rds = new \Redis();
+        $rds->connect($host, $port);
+        if ($pass) $rds->auth($pass);
+        $rds->select($index);
+
+        return $rds;
+    }
+}
+
+if (!function_exists('export_as_csv')) {
     /**
      * @param $data
      * @param string $filename
      */
-    function export_csv($data, $filename = '')
+    function export_as_csv($data, $filename = '')
     {
         if (!$filename) $filename = date('YmdHis') . '.csv';
         header("Content-type:text/csv");
@@ -182,44 +204,56 @@ if (!function_exists('post')) {
 
 if (!function_exists('get_real_client_ip')) {
     /**
-     * 不同环境下获取真实的IP
-     * @return array|false|string
+     * 获取客户端IP地址 摘自TP框架
+     * @param integer $type 返回类型 0:返回IP地址 1:返回IPV4地址数字
+     * @param boolean $adv 是否进行高级模式获取（有可能被伪装）
+     * @return mixed
      */
-    function get_real_client_ip()
+    function get_real_client_ip($type = 0, $adv = true)
     {
-        //判断服务器是否允许$_SERVER
-        if (isset($_SERVER)) {
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $real_ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
-                $real_ip = $_SERVER['HTTP_CLIENT_IP'];
-            } else {
-                $real_ip = $_SERVER['REMOTE_ADDR'];
-            }
-        } else {
-            //不允许就使用getenv获取
-            if (getenv("HTTP_X_FORWARDED_FOR")) {
-                $real_ip = getenv("HTTP_X_FORWARDED_FOR");
-            } elseif (getenv("HTTP_CLIENT_IP")) {
-                $real_ip = getenv("HTTP_CLIENT_IP");
-            } else {
-                $real_ip = getenv("REMOTE_ADDR");
-            }
+        $type = $type ? 1 : 0;
+        static $ip = null;
+        if (null !== $ip) {
+            return $ip[$type];
         }
+        if ($adv) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $arr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $pos = array_search('unknown', $arr);
+                if (false !== $pos) {
+                    unset($arr[$pos]);
+                }
+                $ip = trim(current($arr));
+            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
+                $ip = $_SERVER['HTTP_CLIENT_IP'];
+            } elseif (isset($_SERVER['REMOTE_ADDR'])) {
+                $ip = $_SERVER['REMOTE_ADDR'];
+            }
+        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        // IP地址合法验证
+        $long = sprintf("%u", ip2long($ip));
+        $ip = $long ? [$ip, $long] : ['0.0.0.0', 0];
 
-        return $real_ip;
+        return $ip[$type];
     }
 }
 
 if (!function_exists('generate_unique_id')) {
     /**
      * 生成唯一ID
+     * @param string $prefix
      * @param string $uid
+     * @param string $suffix
      * @return string
      */
-    function generate_unique_id($uid = '')
+    function generate_unique_id($prefix = 'mg_', $uid = '', $suffix = '')
     {
-        return uniqid('wx_' . $uid . '_', true) . '_' . mt_rand(1, 999999999);
+        return
+            uniqid($prefix . $uid . '_', true)
+            . '_' . mt_rand(1, 999999999)
+            . $suffix;
     }
 }
 
@@ -239,3 +273,123 @@ if (!function_exists('base64_encode_image')) {
     }
 }
 
+if (!function_exists('lat_lng_to_address')) {
+    /**
+     * 把传入的经纬度转换为位置 腾讯地图api 取第一个位置
+     * @param $lat
+     * @param $lng
+     * @return string
+     */
+    function lat_lng_to_address($lat, $lng)
+    {
+        // 不要频繁调用腾讯的接口
+        sleep(1);
+        $url = 'https://apis.map.qq.com/ws/geocoder/v1/';
+        $data['location'] = $lat . ',' . $lng;
+        $data['key'] = 'SNCBZ-IAIKX-VD74W-ZBGFH-DBNSQ-UXBE2';
+
+        $rs = get($url, $data);
+        $address = '';
+        $rs = json_decode($rs, true);
+        if ($rs['status'] === 0) {
+            $address = $rs['result']['address'];
+        }
+
+        return $address;
+    }
+}
+
+if (!function_exists('success')) {
+    /**
+     * json返回 成功
+     * @param bool $data false代表不返回data字段
+     * @param string $msg
+     * @param int $status 1:成功 0:失败
+     * @param int $code 大于100时为http状态码
+     * @return string json
+     */
+    function success($data = false, $msg = '成功', $status = 1, $code = 200)
+    {
+        if ($data !== false) {
+            $re['data'] = $data;
+        }
+        $re['msg'] = $msg;
+        $re['status'] = $status;
+        $re['code'] = $code;
+
+        // 支持跨域
+        $headers = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'POST,PUT,GET,DELETE,OPTIONS',
+            'Access-Control-Allow-Headers' => 'ApiAuth, token, User-Agent, Keep-Alive, Origin, No-Cache, X-Requested-With, If-Modified-Since, Pragma, Last-Modified, Cache-Control, Expires, Content-Type, X-E4M-With',
+            'Access-Control-Allow-Credentials' => 'true'
+        ];
+        $headers['Content-Type'] = 'application/json; charset=utf-8';
+        $headers_str = '';
+        foreach ($headers as $k => $header) {
+            $headers_str .= $k . ': ' . $header . '; ';
+        }
+        $headers_str = substr($headers_str, 0, -2);
+        header($headers_str);
+
+        return json_encode($re);
+    }
+}
+
+if (!function_exists('fail')) {
+    /**
+     * json返回 失败
+     * @param bool $data false代表不返回data字段
+     * @param string $msg
+     * @param int $status
+     * @param int $code 大于100时为http状态码
+     * @return string json
+     */
+    function fail($data = false, $msg = '失败', $status = 0, $code = 200)
+    {
+        if ($data !== false) {
+            $re['data'] = $data;
+        }
+        $re['msg'] = $msg;
+        $re['status'] = $status;
+        $re['code'] = $code;
+
+        // 设置json头
+
+        // 支持跨域
+        $headers = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'POST,PUT,GET,DELETE,OPTIONS',
+            'Access-Control-Allow-Headers' => 'ApiAuth, token, User-Agent, Keep-Alive, Origin, No-Cache, X-Requested-With, If-Modified-Since, Pragma, Last-Modified, Cache-Control, Expires, Content-Type, X-E4M-With',
+            'Access-Control-Allow-Credentials' => 'true'
+        ];
+        $headers['Content-Type'] = 'application/json; charset=utf-8';
+        $headers_str = '';
+        foreach ($headers as $k => $header) {
+            $headers_str .= $k . ': ' . $header . '; ';
+        }
+        $headers_str = substr($headers_str, 0, -2);
+        header($headers_str);
+
+        return json_encode($re);
+    }
+}
+
+// todo:距离转化 m - km 里 - 公里
+if (!function_exists('format_distance')) {
+    /**
+     * @param $size
+     * @return string
+     */
+    function format_distance($size)
+    {
+        $units = array('m', ' km');
+        for ($i = 0; $size >= 1000 && $i < 1; $i++) {
+            $size /= 1000;
+        }
+
+        return round($size, 2) . $units[$i];
+    }
+}
+
+// todo:存储容量转化 B - KB - MB - GB - TB - PB

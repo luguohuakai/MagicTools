@@ -420,15 +420,19 @@ if (!function_exists('ED')) {
     }
 }
 
-// todo:距离转化 m - km 里 - 公里
 if (!function_exists('format_distance')) {
     /**
      * @param $size
+     * @param bool $chinese 是否汉化
      * @return string
      */
-    function format_distance($size)
+    function format_distance($size, $chinese = false)
     {
-        $units = array('m', ' km');
+        if ($chinese) {
+            $units = ['里', '公里'];
+        } else {
+            $units = ['m', 'km'];
+        }
         for ($i = 0; $size >= 1000 && $i < 1; $i++) {
             $size /= 1000;
         }

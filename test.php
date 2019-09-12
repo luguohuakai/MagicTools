@@ -8,4 +8,4 @@
 
 include_once __DIR__ . '/yii2_func.php';
 
-dd(the_last_day_of_this_month());
+dd(format_distance(999, true));

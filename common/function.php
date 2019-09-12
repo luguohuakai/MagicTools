@@ -78,7 +78,7 @@ if (!function_exists('rds')) {
      */
     function rds($index = 0, $port = 6379, $host = 'localhost', $pass = '')
     {
-        $rds = new \Redis();
+        $rds = new Redis();
         $rds->connect($host, $port);
         if ($pass) $rds->auth($pass);
         $rds->select($index);
@@ -438,6 +438,62 @@ if (!function_exists('format_distance')) {
         }
 
         return round($size, 2) . $units[$i];
+    }
+}
+
+if (!function_exists('is_email')) {
+    function is_email($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_EMAIL) ? true : false;
+    }
+}
+
+if (!function_exists('is_ip')) {
+    function is_ip($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_IP) ? true : false;
+    }
+}
+
+if (!function_exists('is_ipv4')) {
+    function is_ipv4($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? true : false;
+    }
+}
+
+if (!function_exists('is_ipv6')) {
+    function is_ipv6($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? true : false;
+    }
+}
+
+if (!function_exists('is_mac')) {
+    function is_mac($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_MAC) ? true : false;
+    }
+}
+
+if (!function_exists('is_domain')) {
+    function is_domain($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_DOMAIN) ? true : false;
+    }
+}
+
+if (!function_exists('is_url')) {
+    function is_url($input)
+    {
+        return filter_var($input, FILTER_VALIDATE_URL) ? true : false;
+    }
+}
+
+if (!function_exists('is_mobile_phone')) {
+    function is_mobile_phone($input)
+    {
+        return preg_match('/^1\d{10}$/', $input) ? true : false;
     }
 }
 

@@ -29,6 +29,13 @@ if (!function_exists('dd')) {
                 echo 'bool false';
             }
         }
+        if ($var === true) {
+            if ($stop) {
+                die('bool true');
+            } else {
+                echo 'bool true';
+            }
+        }
         if ($var === null) {
             if ($stop) {
                 die('null');

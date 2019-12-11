@@ -15,12 +15,17 @@ if (!function_exists('humanity_time')) {
     {
         $now = time();
         $diff = $now - $timestamp;
+        $day = floor($diff / (24 * 60 * 60));
         switch (true) {
-            case $diff > 24 * 60 * 60:
+            case $diff > 365 * 24 * 60 * 60:
                 return date('Y-m-d H:i:s');
             case $diff > 1 * 60 * 60:
-                if (date('d', $timestamp) + 1 == date('d')) {
-                    return '昨天' . date('H:i:s', $timestamp);
+                if ($day >= 1) {
+                    return '昨天' . date('H:i', $timestamp);
+                } elseif ($day >= 2) {
+                    return '前天' . date('H:i', $timestamp);
+                } elseif ($day >= 3) {
+                    return $day . '天前';
                 } else {
                     return floor($diff / (60 * 60)) . '小时前';
                 }

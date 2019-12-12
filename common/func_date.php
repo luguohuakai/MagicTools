@@ -20,12 +20,12 @@ if (!function_exists('humanity_time')) {
             case $diff > 365 * 24 * 60 * 60:
                 return date('Y-m-d H:i:s');
             case $diff > 1 * 60 * 60:
-                if ($day >= 1) {
-                    return '昨天' . date('H:i', $timestamp);
+                if ($day >= 3) {
+                    return $day . '天前';
                 } elseif ($day >= 2) {
                     return '前天' . date('H:i', $timestamp);
-                } elseif ($day >= 3) {
-                    return $day . '天前';
+                } elseif ($day >= 1) {
+                    return '昨天' . date('H:i', $timestamp);
                 } else {
                     return floor($diff / (60 * 60)) . '小时前';
                 }

@@ -615,3 +615,19 @@ if (!function_exists('magic_time')) {
         }
     }
 }
+
+if (!function_exists('json_decode_plus')) {
+    /**
+     * json解析key不含双引号的字符串
+     * @param $str
+     * @param bool $mode
+     * @return mixed
+     */
+    function json_decode_plus($str, $mode = false)
+    {
+        if (preg_match('/\w:/', $str)) {
+            $str = preg_replace('/(\w+):/is', '"$1":', $str);
+        }
+        return json_decode($str, $mode);
+    }
+}

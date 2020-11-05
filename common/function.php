@@ -19,45 +19,29 @@ if (!function_exists('dd')) {
      * 调试输出神器
      * @param string $var
      * @param bool $stop 是否截断(die)
+     * @param bool $as_array
      */
-    function dd($var = '', $stop = true)
+    function dd($var = '', $stop = true, $as_array = false)
     {
-        if ($var === false) {
-            if ($stop) {
-                die('bool false');
-            } else {
-                echo 'bool false';
-            }
-        }
-        if ($var === true) {
-            if ($stop) {
-                die('bool true');
-            } else {
-                echo 'bool true';
-            }
-        }
-        if ($var === null) {
-            if ($stop) {
-                die('null');
-            } else {
-                echo 'null';
-            }
-        }
-        if (is_string($var) and trim($var) === '') {
-            if ($stop) {
-                die('string ""');
-            } else {
-                echo 'string ""';
-            }
-        }
-        if ($stop) {
+        if (is_array($var) || is_object($var)) {
             echo '<pre>';
-            print_r($var);
-            die('</pre>');
+            if ($as_array) {
+                var_export($var);
+            } else {
+                print_r($var);
+            }
+            if ($stop) {
+                die('</pre>');
+            } else {
+                echo '</pre>';
+            }
         } else {
-            echo '<pre>';
-            print_r($var);
-            echo '</pre>';
+            if ($stop) {
+                var_dump($var);
+                die;
+            } else {
+                var_dump($var);
+            }
         }
     }
 }
@@ -141,23 +125,21 @@ if (!function_exists('get')) {
      */
     function get($url, $get_data = [], $header = [])
     {
-        if (!empty($get_data)) {
-            $url = join_params($url, $get_data);
-        }
-        //初始化
+        if (!empty($get_data)) $url = join_params($url, $get_data);
+        // 初始化
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// SSL证书认证
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);// SSL证书认证
-        //设置选项，包括URL
+        // 设置选项，包括URL
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_HEADER, 0);
         if (!empty($header)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         }
-        //执行并获取HTML文档内容
+        // 执行并获取HTML文档内容
         $output = curl_exec($ch);
-        //释放curl句柄
+        // 释放curl句柄
         curl_close($ch);
 
         return $output;
@@ -166,10 +148,12 @@ if (!function_exists('get')) {
     function join_params($path, $params)
     {
         $url = $path;
+        $parse_rs = parse_url($url);
+        $query = isset($parse_rs['query']) ? $parse_rs['query'] : '';
         if (count($params) > 0) {
-            $url = $url . "?";
+            $url = $query ? $url . '&' : $url . '?';
             foreach ($params as $key => $value) {
-                $url = $url . $key . "=" . $value . "&";
+                $url = $url . $key . '=' . $value . '&';
             }
             $length = mb_strlen($url);
             if ($url[$length - 1] == '&') {
@@ -196,12 +180,14 @@ if (!function_exists('post')) {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_HEADER, 0);
-        // post的变量
-//        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data)); // 模拟表单提交
+        // 模拟表单提交
+//        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
+        // json方式提交
+//        $_header = array("Content-Type: application/json; charset=utf-8", "Content-Length:" . strlen(json_encode($post_data)));
+//        curl_setopt($ch, CURLOPT_HTTPHEADER, $_header);
+//        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post_data));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-        if (!empty($header)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
-        }
+        if (!empty($header)) curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         $output = curl_exec($ch);
         curl_close($ch);
 
@@ -382,14 +368,14 @@ if (!function_exists('fail')) {
     }
 }
 
-if (!function_exists('ED')) {
+if (!function_exists('ed')) {
     /**
      * @param string $string 需要加密解密的字符串
      * @param string $operation 判断是加密还是解密，E表示加密，D表示解密
      * @param string $key 密匙
      * @return bool|mixed|string
      */
-    function ED($string, $operation, $key = 'www.srun.com')
+    function ed($string, $operation, $key = 'www.srun.com')
     {
         $key = md5($key);
         $key_length = strlen($key);
@@ -629,5 +615,51 @@ if (!function_exists('json_decode_plus')) {
             $str = preg_replace('/(\w+):/is', '"$1":', $str);
         }
         return json_decode($str, $mode);
+    }
+}
+
+if (!function_exists('page')) {
+    /**
+     * 分页函数
+     * @param int $count 总条目数
+     * @param int $page 当前页码
+     * @param int $size 当前没有条目数
+     * @return object mixed
+     */
+    function page($count, $page, $size)
+    {
+        return json_decode(json_encode([
+            'page' => $page,
+            'size' => $size,
+            'total_pages' => ceil($count / $size),
+            'total_items' => $count,
+            'limit' => $size,
+            'offset' => $size * ($page - 1),
+        ]));
+    }
+}
+
+if (!function_exists('exit_fail')) {
+    function exit_fail($data = '', $msg = '失败')
+    {
+        header('Content-Type:application/json; charset=utf-8');
+        exit(json_encode(fail($data, $msg)));
+    }
+}
+
+if (!function_exists('exit_success')) {
+    function exit_success($data, $msg = '成功')
+    {
+        header('Content-Type:application/json; charset=utf-8');
+        exit(json_encode(success($data, $msg)));
+    }
+}
+
+if (!function_exists('logs')) {
+    function logs($filename, $data, $flags = FILE_APPEND, $by_month = true)
+    {
+        $time = date('Y-m-d H:i:s', time());
+        if ($by_month) $filename .= '_' . date('Ym', time());
+        file_put_contents($filename . '.log', "======== {$time} ========\r\n" . print_r($data, true) . "\r\n", $flags);
     }
 }

@@ -375,7 +375,7 @@ if (!function_exists('ed')) {
      * @param string $key 密匙
      * @return bool|mixed|string
      */
-    function ed($string, $operation, $key = 'www.srun.com')
+    function ed($string = '', $operation = 'E', $key = 'www.srun.com')
     {
         $key = md5($key);
         $key_length = strlen($key);
@@ -580,7 +580,7 @@ if (!function_exists('magic_time')) {
             case 'this_week_end':
                 return strtotime((new DateTime)->modify('this week + 7 days')->format('Ymd')) - 1;
             case 'this_month_begin':
-                return strtotime(date('Ym01', strtotime(date("Ymd"))));
+                return strtotime(date('Ym01'));
             case 'this_month_end':
                 $m = date('m');
                 $y = date('Y');
@@ -661,5 +661,18 @@ if (!function_exists('logs')) {
         $time = date('Y-m-d H:i:s', time());
         if ($by_month) $filename .= '_' . date('Ym', time());
         file_put_contents($filename . '.log', "======== {$time} ========\r\n" . print_r($data, true) . "\r\n", $flags);
+    }
+}
+
+if (!function_exists('tree')) {
+    /**
+     * @param array $items 形如: [['id'=>1, 'pid'=>0, ...], ...]
+     * @return array|mixed
+     */
+    function tree($items)
+    {
+        foreach ($items as $item)
+            $items[$item['pid']]['son'][$item['id']] = &$items[$item['id']];
+        return isset($items[0]['son']) ? $items[0]['son'] : [];
     }
 }

@@ -46,6 +46,24 @@ if (!function_exists('dd')) {
     }
 }
 
+if (!function_exists('ww')) {
+// 打印并换行
+    function ww($var = '')
+    {
+        if ($var === false) echo 'bool false' . "\r\n";
+        if ($var === null) echo 'null' . "\r\n";
+        if (is_string($var) and trim($var) === '') echo 'string ""' . "\r\n";
+        if (is_string($var)) {
+            echo $var . "\r\n";
+        } else {
+            echo '<pre>';
+            print_r($var);
+            echo '</pre>';
+            echo "\r\n";
+        }
+    }
+}
+
 if (!function_exists('alert')) {
     /**
      * 网页快速弹出调试
@@ -130,6 +148,8 @@ if (!function_exists('get')) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// SSL证书认证
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);// SSL证书认证
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
         // 设置选项，包括URL
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -139,6 +159,8 @@ if (!function_exists('get')) {
         }
         // 执行并获取HTML文档内容
         $output = curl_exec($ch);
+        $_err = curl_error($ch);
+        if ($_err) return json_decode(json_encode(['_err' => $_err]));
         // 释放curl句柄
         curl_close($ch);
 
@@ -176,6 +198,8 @@ if (!function_exists('post')) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// SSL证书认证
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);// SSL证书认证
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -189,6 +213,8 @@ if (!function_exists('post')) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
         if (!empty($header)) curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         $output = curl_exec($ch);
+        $_err = curl_error($ch);
+        if ($_err) return json_decode(json_encode(['_err' => $_err]));
         curl_close($ch);
 
         return $output;
@@ -656,11 +682,52 @@ if (!function_exists('exit_success')) {
 }
 
 if (!function_exists('logs')) {
-    function logs($filename, $data, $flags = FILE_APPEND, $by_month = true)
+    function logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
     {
+        if (strpos($filename, '/') === false) {
+            switch (true) {
+                case is_dir('/srun3/log/'):
+                    $dir = '/srun3/log/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/srun3/www/srun_mq/backend/runtime/logs/'):
+                    $dir = '/srun3/www/srun_mq/backend/runtime/logs/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/srun3/www/srun4-mgr/center/runtime/logs/'):
+                    $dir = '/srun3/www/srun4-mgr/center/runtime/logs/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/tmp/'):
+                    $dir = '/tmp/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                default:
+                    break;
+            }
+            if (isset($dir)) $filename = $dir . $filename;
+        }
         $time = date('Y-m-d H:i:s', time());
-        if ($by_month) $filename .= '_' . date('Ym', time());
+        if ($by === 'month') $filename .= '_' . date('Ym', time());
+        if ($by === 'day') $filename .= '_' . date('Ymd', time());
+        if ($by === 'year') $filename .= '_' . date('Y', time());
+        if ($by === 'hour') $filename .= '_' . date('YmdH', time());
+        if ($by === 'minute') $filename .= '_' . date('YmdHi', time());
+        if ($format === 'json') $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+        if ($format === 'serialize') $data = serialize($data);
         file_put_contents($filename . '.log', "======== {$time} ========\r\n" . print_r($data, true) . "\r\n", $flags);
+    }
+}
+
+if (!function_exists('ww_logs')) {
+    function ww_logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
+    {
+        ww($data);
+        logs($filename, $data, $format, $flags = FILE_APPEND, $by);
     }
 }
 

@@ -286,9 +286,7 @@ if (!function_exists('base64_encode_image')) {
     {
         $image_info = getimagesize($image_file);
         $image_data = fread(fopen($image_file, 'r'), filesize($image_file));
-        $base64_image = 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
-
-        return $base64_image;
+        return 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
     }
 }
 
@@ -682,10 +680,22 @@ if (!function_exists('exit_success')) {
 }
 
 if (!function_exists('logs')) {
+    /**
+     * @param string $filename 日志存放位置 默认 /tmp/dm-log/
+     * @param mixed $data 日志内容
+     * @param string $format 日志格式 human-readable:默认 json:JSON格式化 serialize:序列化
+     * @param int $flags 默认:FILE_APPEND 追加
+     * @param string $by 默认:month 日志文件按月生成
+     */
     function logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
     {
         if (strpos($filename, '/') === false) {
             switch (true) {
+                case is_dir('/tmp/'):
+                    $dir = '/tmp/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
                 case is_dir('/srun3/log/'):
                     $dir = '/srun3/log/dm-log/';
                     if (!is_dir($dir))
@@ -698,11 +708,6 @@ if (!function_exists('logs')) {
                     break;
                 case is_dir('/srun3/www/srun4-mgr/center/runtime/logs/'):
                     $dir = '/srun3/www/srun4-mgr/center/runtime/logs/dm-log/';
-                    if (!is_dir($dir))
-                        mkdir($dir);
-                    break;
-                case is_dir('/tmp/'):
-                    $dir = '/tmp/dm-log/';
                     if (!is_dir($dir))
                         mkdir($dir);
                     break;
@@ -719,7 +724,10 @@ if (!function_exists('logs')) {
         if ($by === 'minute') $filename .= '_' . date('YmdHi', time());
         if ($format === 'json') $data = json_encode($data, JSON_UNESCAPED_UNICODE);
         if ($format === 'serialize') $data = serialize($data);
-        file_put_contents($filename . '.log', "======== {$time} ========\r\n" . print_r($data, true) . "\r\n", $flags);
+        $filename .= '.log';
+        if (!is_file($filename)) file_put_contents($filename, '', FILE_APPEND);
+        chmod($filename, 0777);
+        file_put_contents($filename, $time . ' ' . print_r($data, true) . "\r\n", $flags);
     }
 }
 
@@ -727,7 +735,7 @@ if (!function_exists('ww_logs')) {
     function ww_logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
     {
         ww($data);
-        logs($filename, $data, $format, $flags = FILE_APPEND, $by);
+        logs($filename, $data, $format, $flags, $by);
     }
 }
 
@@ -741,5 +749,34 @@ if (!function_exists('tree')) {
         foreach ($items as $item)
             $items[$item['pid']]['son'][$item['id']] = &$items[$item['id']];
         return isset($items[0]['son']) ? $items[0]['son'] : [];
+    }
+}
+
+if (!function_exists('replaceWith')) {
+    /**
+     * 将字符串的一部分字符替换为指定字符
+     * @param string $str 要替换的字符串
+     * @param string $position 要替换的位置 left:从左边开始替换 middle:默认从中间开始替换 right:从右边开始替换
+     * @param string $replace 要替换成的字符串 默认 *
+     * @return string
+     */
+    function replaceWith($str, $position = 'middle', $replace = '*')
+    {
+        // 替换字符串长度均为原字符串一半 向下取整
+        $str_len = mb_strlen($str);
+        $replace_len = ceil($str_len / 3);
+        $replace_str = str_repeat($replace, $replace_len);
+        $offset = 0;
+        if ($position === 'middle') {
+            if ($str_len <= 1) {
+                $offset = 0;
+            } elseif ($str_len <= 5) {
+                $offset = 1;
+            } else {
+                $offset = ceil($str_len / 4);
+            }
+        }
+        if ($position === 'right') $offset = -$replace_len;
+        return substr_replace($str, $replace_str, $offset, $replace_len);
     }
 }

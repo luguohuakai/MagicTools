@@ -61,12 +61,12 @@ if (!function_exists('dateSimple')) {
 }
 
 if (!function_exists('second2Humanity')) {
-    function second2Humanity($timestamp, $simple = false)
+    function seconds2Humanity($seconds, $simple = false)
     {
-        $day = floor($timestamp / 86400);
-        $hour = floor($timestamp % 86400 / 3600);
-        $minute = floor($timestamp % 86400 % 3600 / 60);
-        $second = $timestamp % 86400 % 3600 % 60;
+        $day = floor($seconds / 86400);
+        $hour = floor($seconds % 86400 / 3600);
+        $minute = floor($seconds % 86400 % 3600 / 60);
+        $second = $seconds % 86400 % 3600 % 60;
         $str = '';
         if ($simple) {
             if ($second) $str = $second . '秒';

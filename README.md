@@ -1,5 +1,5 @@
 # MagicTools 常用php功能函数
-###使用方法非常简单
+### 使用方法非常简单
 如果能找到对应框架可加载对应框架的工具函数
 ```
 include_once __DIR__ . '/yii2_func.php';

@@ -36,12 +36,8 @@ if (!function_exists('dd')) {
                 echo '</pre>';
             }
         } else {
-            if ($stop) {
-                var_dump($var);
-                die;
-            } else {
-                var_dump($var);
-            }
+            var_dump($var);
+            if ($stop) die;
         }
     }
 }
@@ -61,6 +57,66 @@ if (!function_exists('ww')) {
             echo '</pre>';
             echo "\r\n";
         }
+    }
+}
+
+if (!function_exists('logs')) {
+    /**
+     * @param string $filename 日志存放位置 默认 /tmp/dm-log/
+     * @param mixed $data 日志内容
+     * @param string $format 日志格式 human-readable:默认 json:JSON格式化 serialize:序列化
+     * @param int $flags 默认:FILE_APPEND 追加
+     * @param string $by 默认:month 日志文件按月生成
+     */
+    function logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
+    {
+        if (strpos($filename, '/') === false) {
+            switch (true) {
+                case is_dir('/tmp/'):
+                    $dir = '/tmp/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/srun3/log/'):
+                    $dir = '/srun3/log/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/srun3/www/srun_mq/backend/runtime/logs/'):
+                    $dir = '/srun3/www/srun_mq/backend/runtime/logs/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                case is_dir('/srun3/www/srun4-mgr/center/runtime/logs/'):
+                    $dir = '/srun3/www/srun4-mgr/center/runtime/logs/dm-log/';
+                    if (!is_dir($dir))
+                        mkdir($dir);
+                    break;
+                default:
+                    break;
+            }
+            if (isset($dir)) $filename = $dir . $filename;
+        }
+        $time = date('Y-m-d H:i:s', time());
+        if ($by === 'month') $filename .= '_' . date('Ym', time());
+        if ($by === 'day') $filename .= '_' . date('Ymd', time());
+        if ($by === 'year') $filename .= '_' . date('Y', time());
+        if ($by === 'hour') $filename .= '_' . date('YmdH', time());
+        if ($by === 'minute') $filename .= '_' . date('YmdHi', time());
+        if ($format === 'json') $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+        if ($format === 'serialize') $data = serialize($data);
+        $filename .= '.log';
+        if (!is_file($filename)) file_put_contents($filename, '', FILE_APPEND);
+        chmod($filename, 0777);
+        file_put_contents($filename, $time . ' ' . print_r($data, true) . "\r\n", $flags);
+    }
+}
+
+if (!function_exists('wwLogs')) {
+    function wwLogs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
+    {
+        ww($data);
+        logs($filename, $data, $format, $flags, $by);
     }
 }
 
@@ -85,52 +141,14 @@ if (!function_exists('rds')) {
      * @param string $pass
      * @return Redis
      */
-    function rds($index = 0, $port = 6379, $host = 'localhost', $pass = '')
+    function rds($index = 0, $port = 6379, $host = 'localhost', $pass = null)
     {
         $rds = new Redis();
         $rds->connect($host, $port);
-        if ($pass) $rds->auth($pass);
+        if ($pass !== null) $rds->auth($pass);
         $rds->select($index);
 
         return $rds;
-    }
-}
-
-if (!function_exists('export_as_csv')) {
-    /**
-     * @param $data
-     * @param string $filename
-     */
-    function export_as_csv($data, $filename = '')
-    {
-        if (!$filename) $filename = date('YmdHis') . '.csv';
-        header("Content-type:text/csv");
-        header("Content-Disposition:attachment;filename=" . $filename);
-        header('Cache-Control:must-revalidate,post-check=0,pre-check=0');
-        header('Expires:0');
-        header('Pragma:public');
-        $str = '';
-        $keys = array_keys($data[0]);
-        for ($i = 0; $i < count($keys); $i++) {
-            if ($i != count($keys) - 1) {
-                $str .= $keys[$i] . ',';
-            } else {
-                $str .= $keys[$i] . "\r\n";
-            }
-        }
-        foreach ($data as $vv) {
-            $k = 0;
-            foreach ($vv as $vvv) {
-                if ($k != count($vv) - 1) {
-                    $str .= $vvv . ',';
-                } else {
-                    $str .= $vvv . "\r\n";
-                }
-                $k++;
-            }
-        }
-        $str = iconv('utf-8', 'gb2312', $str);
-        exit($str);
     }
 }
 
@@ -221,98 +239,44 @@ if (!function_exists('post')) {
     }
 }
 
-if (!function_exists('get_real_client_ip')) {
+if (!function_exists('formatReturnData2Json')) {
     /**
-     * 获取客户端IP地址 摘自TP框架
-     * @param integer $type 返回类型 0:返回IP地址 1:返回IPV4地址数字
-     * @param boolean $adv 是否进行高级模式获取（有可能被伪装）
-     * @return mixed
+     * @param false $data 返回数据
+     * @param string $msg
+     * @param int $status
+     * @param int $code
+     * @return false|string
      */
-    function get_real_client_ip($type = 0, $adv = true)
+    function formatReturnData2Json($data = false, $msg = '成功', $status = 1, $code = 200)
     {
-        $type = $type ? 1 : 0;
-        static $ip = null;
-        if (null !== $ip) {
-            return $ip[$type];
-        }
-        if ($adv) {
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $arr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $pos = array_search('unknown', $arr);
-                if (false !== $pos) {
-                    unset($arr[$pos]);
-                }
-                $ip = trim(current($arr));
-            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
-                $ip = $_SERVER['HTTP_CLIENT_IP'];
-            } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-                $ip = $_SERVER['REMOTE_ADDR'];
+        $re['code'] = $code;
+        $re['message'] = $msg;
+        $re['status'] = $status;
+        if ($data !== false) {
+            if (is_array($data) && isset($data['extra'])) {
+                $re['extra'] = $data['extra'];
             }
-        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-            $ip = $_SERVER['REMOTE_ADDR'];
+            if (is_array($data) && isset($data['data'])) {
+                $re['data'] = $data['data'];
+            } else {
+                $re['data'] = $data;
+            }
         }
-        // IP地址合法验证
-        $long = sprintf("%u", ip2long($ip));
-        $ip = $long ? [$ip, $long] : ['0.0.0.0', 0];
-
-        return $ip[$type];
-    }
-}
-
-if (!function_exists('generate_unique_id')) {
-    /**
-     * 生成唯一ID
-     * @param string $prefix
-     * @param string $uid
-     * @param string $suffix
-     * @return string
-     */
-    function generate_unique_id($prefix = 'mg_', $uid = '', $suffix = '')
-    {
-        return
-            uniqid($prefix . $uid . '_', true)
-            . '_' . mt_rand(1, 999999999)
-            . $suffix;
-    }
-}
-
-if (!function_exists('base64_encode_image')) {
-    /**
-     * 将图片转化为Base64
-     * @param $image_file
-     * @return string
-     */
-    function base64_encode_image($image_file)
-    {
-        $image_info = getimagesize($image_file);
-        $image_data = fread(fopen($image_file, 'r'), filesize($image_file));
-        return 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
-    }
-}
-
-if (!function_exists('lat_lng_to_address')) {
-    /**
-     * 把传入的经纬度转换为位置 腾讯地图api 取第一个位置
-     * @param $lat
-     * @param $lng
-     * @return string
-     */
-    function lat_lng_to_address($lat, $lng)
-    {
-        // 不要频繁调用腾讯的接口
-        sleep(1);
-        $url = 'https://apis.map.qq.com/ws/geocoder/v1/';
-        $data['location'] = $lat . ',' . $lng;
-        $data['key'] = 'SNCBZ-IAIKX-VD74W-ZBGFH-DBNSQ-UXBE2';
-
-        $rs = get($url, $data);
-        $address = '';
-        $rs = json_decode($rs, true);
-        if ($rs['status'] === 0) {
-            $address = $rs['result']['address'];
+        // 支持跨域
+        $headers = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'POST,PUT,GET,DELETE,OPTIONS',
+            'Access-Control-Allow-Headers' => 'ApiAuth, token, User-Agent, Keep-Alive, Origin, No-Cache, X-Requested-With, If-Modified-Since, Pragma, Last-Modified, Cache-Control, Expires, Content-Type, X-E4M-With',
+            'Access-Control-Allow-Credentials' => 'true'
+        ];
+        $headers['Content-Type'] = 'application/json; charset=utf-8';
+        $headers_str = '';
+        foreach ($headers as $k => $header) {
+            $headers_str .= $k . ': ' . $header . '; ';
         }
-
-        return $address;
+        $headers_str = substr($headers_str, 0, -2);
+        header($headers_str);
+        return json_encode($re, JSON_UNESCAPED_UNICODE);
     }
 }
 
@@ -327,29 +291,7 @@ if (!function_exists('success')) {
      */
     function success($data = false, $msg = '成功', $status = 1, $code = 200)
     {
-        if ($data !== false) {
-            $re['data'] = $data;
-        }
-        $re['msg'] = $msg;
-        $re['status'] = $status;
-        $re['code'] = $code;
-
-        // 支持跨域
-        $headers = [
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'POST,PUT,GET,DELETE,OPTIONS',
-            'Access-Control-Allow-Headers' => 'ApiAuth, token, User-Agent, Keep-Alive, Origin, No-Cache, X-Requested-With, If-Modified-Since, Pragma, Last-Modified, Cache-Control, Expires, Content-Type, X-E4M-With',
-            'Access-Control-Allow-Credentials' => 'true'
-        ];
-        $headers['Content-Type'] = 'application/json; charset=utf-8';
-        $headers_str = '';
-        foreach ($headers as $k => $header) {
-            $headers_str .= $k . ': ' . $header . '; ';
-        }
-        $headers_str = substr($headers_str, 0, -2);
-        header($headers_str);
-
-        return json_encode($re);
+        return formatReturnData2Json($data, $msg, $status, $code);
     }
 }
 
@@ -364,31 +306,44 @@ if (!function_exists('fail')) {
      */
     function fail($data = false, $msg = '失败', $status = 0, $code = 200)
     {
-        if ($data !== false) {
-            $re['data'] = $data;
-        }
-        $re['msg'] = $msg;
-        $re['status'] = $status;
-        $re['code'] = $code;
+        return formatReturnData2Json($data, $msg, $status, $code);
+    }
+}
 
-        // 设置json头
+if (!function_exists('exitSuccess')) {
+    function exitSuccess($data, $msg = '成功')
+    {
+        header('Content-Type:application/json; charset=utf-8');
+        exit(success($data, $msg));
+    }
+}
 
-        // 支持跨域
-        $headers = [
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'POST,PUT,GET,DELETE,OPTIONS',
-            'Access-Control-Allow-Headers' => 'ApiAuth, token, User-Agent, Keep-Alive, Origin, No-Cache, X-Requested-With, If-Modified-Since, Pragma, Last-Modified, Cache-Control, Expires, Content-Type, X-E4M-With',
-            'Access-Control-Allow-Credentials' => 'true'
-        ];
-        $headers['Content-Type'] = 'application/json; charset=utf-8';
-        $headers_str = '';
-        foreach ($headers as $k => $header) {
-            $headers_str .= $k . ': ' . $header . '; ';
-        }
-        $headers_str = substr($headers_str, 0, -2);
-        header($headers_str);
+if (!function_exists('exitFail')) {
+    function exitFail($data = '', $msg = '失败')
+    {
+        header('Content-Type:application/json; charset=utf-8');
+        exit(fail($data, $msg));
+    }
+}
 
-        return json_encode($re);
+if (!function_exists('page')) {
+    /**
+     * 分页函数
+     * @param int $count 总条目数
+     * @param int $page 当前页码
+     * @param int $size 当前没有条目数
+     * @return object mixed
+     */
+    function page($count, $page, $size)
+    {
+        return json_decode(json_encode([
+            'page' => $page,
+            'size' => $size,
+            'total_pages' => ceil($count / $size),
+            'total_items' => $count,
+            'limit' => $size,
+            'offset' => $size * ($page - 1),
+        ]));
     }
 }
 
@@ -397,7 +352,7 @@ if (!function_exists('ed')) {
      * @param string $string 需要加密解密的字符串
      * @param string $operation 判断是加密还是解密，E表示加密，D表示解密
      * @param string $key 密匙
-     * @return bool|mixed|string
+     * @return array|false|string|string[]
      */
     function ed($string = '', $operation = 'E', $key = 'www.srun.com')
     {
@@ -437,13 +392,146 @@ if (!function_exists('ed')) {
     }
 }
 
-if (!function_exists('format_distance')) {
+if (!function_exists('exportAsCsv')) {
+    /**
+     * @param $data
+     * @param string $filename
+     */
+    function exportAsCsv($data, $filename = '')
+    {
+        if (!$filename) $filename = date('YmdHis') . '.csv';
+        header("Content-type:text/csv");
+        header("Content-Disposition:attachment;filename=" . $filename);
+        header('Cache-Control:must-revalidate,post-check=0,pre-check=0');
+        header('Expires:0');
+        header('Pragma:public');
+        $str = '';
+        $keys = array_keys($data[0]);
+        for ($i = 0; $i < count($keys); $i++) {
+            if ($i != count($keys) - 1) {
+                $str .= $keys[$i] . ',';
+            } else {
+                $str .= $keys[$i] . "\r\n";
+            }
+        }
+        foreach ($data as $vv) {
+            $k = 0;
+            foreach ($vv as $vvv) {
+                if ($k != count($vv) - 1) {
+                    $str .= $vvv . ',';
+                } else {
+                    $str .= $vvv . "\r\n";
+                }
+                $k++;
+            }
+        }
+        $str = iconv('utf-8', 'gb2312', $str);
+        exit($str);
+    }
+}
+
+if (!function_exists('getRealClientIp')) {
+    /**
+     * 获取客户端IP地址 摘自TP框架
+     * @param integer $type 返回类型 0:返回IP地址 1:返回IPV4地址数字
+     * @param boolean $adv 是否进行高级模式获取（有可能被伪装）
+     * @return mixed
+     */
+    function getRealClientIp($type = 0, $adv = true)
+    {
+        $type = $type ? 1 : 0;
+        static $ip = null;
+        if (null !== $ip) {
+            return $ip[$type];
+        }
+        if ($adv) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $arr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $pos = array_search('unknown', $arr);
+                if (false !== $pos) {
+                    unset($arr[$pos]);
+                }
+                $ip = trim(current($arr));
+            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
+                $ip = $_SERVER['HTTP_CLIENT_IP'];
+            } elseif (isset($_SERVER['REMOTE_ADDR'])) {
+                $ip = $_SERVER['REMOTE_ADDR'];
+            }
+        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        // IP地址合法验证
+        $long = sprintf("%u", ip2long($ip));
+        $ip = $long ? [$ip, $long] : ['0.0.0.0', 0];
+
+        return $ip[$type];
+    }
+}
+
+if (!function_exists('generateUniqueId')) {
+    /**
+     * 生成唯一ID
+     * @param string $prefix
+     * @param string $uid
+     * @param string $suffix
+     * @return string
+     */
+    function generateUniqueId($prefix = 'mg_', $uid = '', $suffix = '')
+    {
+        return
+            uniqid($prefix . $uid . '_', true)
+            . '_' . mt_rand(1, 999999999)
+            . $suffix;
+    }
+}
+
+if (!function_exists('base64EncodeImage')) {
+    /**
+     * 将图片转化为Base64
+     * @param $image_file
+     * @return string
+     */
+    function base64EncodeImage($image_file)
+    {
+        $image_info = getimagesize($image_file);
+        $image_data = fread(fopen($image_file, 'r'), filesize($image_file));
+        return 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
+    }
+}
+
+if (!function_exists('latLngToAddress')) {
+    /**
+     * 把传入的经纬度转换为位置 腾讯地图api 取第一个位置
+     * @param $lat
+     * @param $lng
+     * @return string
+     */
+    function latLngToAddress($lat, $lng)
+    {
+        // 不要频繁调用腾讯的接口
+        sleep(1);
+        $url = 'https://apis.map.qq.com/ws/geocoder/v1/';
+        $data['location'] = $lat . ',' . $lng;
+        $data['key'] = 'SNCBZ-IAIKX-VD74W-ZBGFH-DBNSQ-UXBE2';
+
+        $rs = get($url, $data);
+        $address = '';
+        $rs = json_decode($rs, true);
+        if ($rs['status'] === 0) {
+            $address = $rs['result']['address'];
+        }
+
+        return $address;
+    }
+}
+
+if (!function_exists('formatDistance')) {
     /**
      * @param $size
      * @param bool $chinese 是否汉化
      * @return string
      */
-    function format_distance($size, $chinese = false)
+    function formatDistance($size, $chinese = false)
     {
         if ($chinese) {
             $units = ['里', '公里'];
@@ -458,70 +546,70 @@ if (!function_exists('format_distance')) {
     }
 }
 
-if (!function_exists('is_email')) {
-    function is_email($input)
+if (!function_exists('isEmail')) {
+    function isEmail($input)
     {
-        return filter_var($input, FILTER_VALIDATE_EMAIL) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_EMAIL);
     }
 }
 
-if (!function_exists('is_ip')) {
-    function is_ip($input)
+if (!function_exists('isIp')) {
+    function isIp($input)
     {
-        return filter_var($input, FILTER_VALIDATE_IP) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_IP);
     }
 }
 
-if (!function_exists('is_ipv4')) {
-    function is_ipv4($input)
+if (!function_exists('isIpv4')) {
+    function isIpv4($input)
     {
-        return filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
     }
 }
 
-if (!function_exists('is_ipv6')) {
-    function is_ipv6($input)
+if (!function_exists('isIpv6')) {
+    function isIpv6($input)
     {
-        return filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6);
     }
 }
 
-if (!function_exists('is_mac')) {
-    function is_mac($input)
+if (!function_exists('isMac')) {
+    function isMac($input)
     {
-        return filter_var($input, FILTER_VALIDATE_MAC) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_MAC);
     }
 }
 
-if (!function_exists('is_domain')) {
-    function is_domain($input)
+if (!function_exists('isDomain')) {
+    function isDomain($input)
     {
-        return filter_var($input, FILTER_VALIDATE_DOMAIN) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_DOMAIN);
     }
 }
 
-if (!function_exists('is_url')) {
-    function is_url($input)
+if (!function_exists('isUrl')) {
+    function isUrl($input)
     {
-        return filter_var($input, FILTER_VALIDATE_URL) ? true : false;
+        return (bool)filter_var($input, FILTER_VALIDATE_URL);
     }
 }
 
-if (!function_exists('is_mobile_phone')) {
-    function is_mobile_phone($input)
+if (!function_exists('isMobilePhone')) {
+    function isMobilePhone($input)
     {
-        return preg_match('/^1\d{10}$/', $input) ? true : false;
+        return (bool)preg_match('/^1\d{10}$/', $input);
     }
 }
 
-if (!function_exists('file_size_format')) {
+if (!function_exists('fileSizeFormat')) {
     /**
      * 存储容量转化 B - KB - MB - GB - TB - PB
      * @param int $size B
      * @param int $dec 保留小数位数
      * @return string
      */
-    function file_size_format($size = 0, $dec = 2)
+    function fileSizeFormat($size = 0, $dec = 2)
     {
         $unit = array('B', 'KB', 'MB', 'GB', 'TB', 'PB');
         $pos = 0;
@@ -535,7 +623,7 @@ if (!function_exists('file_size_format')) {
     }
 }
 
-if (!function_exists('magic_time')) {
+if (!function_exists('magicTime')) {
     /**
      * // 时间函数封装
      * // 举例
@@ -549,10 +637,10 @@ if (!function_exists('magic_time')) {
      * 'this_month_begin', 'this_month_end', 'this_year_begin',
      * 'this_year_end',
      * @param string $what 要转换的时间字符串
-     * @return bool|false|int
+     * @return bool|int
      * @throws Exception
      */
-    function magic_time($what)
+    function magicTime($what)
     {
         $arr = explode('_', $what);
         if (is_numeric($arr[0])) {
@@ -626,116 +714,19 @@ if (!function_exists('magic_time')) {
     }
 }
 
-if (!function_exists('json_decode_plus')) {
+if (!function_exists('jsonDecodePlus')) {
     /**
      * json解析key不含双引号的字符串
      * @param $str
      * @param bool $mode
      * @return mixed
      */
-    function json_decode_plus($str, $mode = false)
+    function jsonDecodePlus($str, $mode = false)
     {
         if (preg_match('/\w:/', $str)) {
             $str = preg_replace('/(\w+):/is', '"$1":', $str);
         }
         return json_decode($str, $mode);
-    }
-}
-
-if (!function_exists('page')) {
-    /**
-     * 分页函数
-     * @param int $count 总条目数
-     * @param int $page 当前页码
-     * @param int $size 当前没有条目数
-     * @return object mixed
-     */
-    function page($count, $page, $size)
-    {
-        return json_decode(json_encode([
-            'page' => $page,
-            'size' => $size,
-            'total_pages' => ceil($count / $size),
-            'total_items' => $count,
-            'limit' => $size,
-            'offset' => $size * ($page - 1),
-        ]));
-    }
-}
-
-if (!function_exists('exit_fail')) {
-    function exit_fail($data = '', $msg = '失败')
-    {
-        header('Content-Type:application/json; charset=utf-8');
-        exit(json_encode(fail($data, $msg)));
-    }
-}
-
-if (!function_exists('exit_success')) {
-    function exit_success($data, $msg = '成功')
-    {
-        header('Content-Type:application/json; charset=utf-8');
-        exit(json_encode(success($data, $msg)));
-    }
-}
-
-if (!function_exists('logs')) {
-    /**
-     * @param string $filename 日志存放位置 默认 /tmp/dm-log/
-     * @param mixed $data 日志内容
-     * @param string $format 日志格式 human-readable:默认 json:JSON格式化 serialize:序列化
-     * @param int $flags 默认:FILE_APPEND 追加
-     * @param string $by 默认:month 日志文件按月生成
-     */
-    function logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
-    {
-        if (strpos($filename, '/') === false) {
-            switch (true) {
-                case is_dir('/tmp/'):
-                    $dir = '/tmp/dm-log/';
-                    if (!is_dir($dir))
-                        mkdir($dir);
-                    break;
-                case is_dir('/srun3/log/'):
-                    $dir = '/srun3/log/dm-log/';
-                    if (!is_dir($dir))
-                        mkdir($dir);
-                    break;
-                case is_dir('/srun3/www/srun_mq/backend/runtime/logs/'):
-                    $dir = '/srun3/www/srun_mq/backend/runtime/logs/dm-log/';
-                    if (!is_dir($dir))
-                        mkdir($dir);
-                    break;
-                case is_dir('/srun3/www/srun4-mgr/center/runtime/logs/'):
-                    $dir = '/srun3/www/srun4-mgr/center/runtime/logs/dm-log/';
-                    if (!is_dir($dir))
-                        mkdir($dir);
-                    break;
-                default:
-                    break;
-            }
-            if (isset($dir)) $filename = $dir . $filename;
-        }
-        $time = date('Y-m-d H:i:s', time());
-        if ($by === 'month') $filename .= '_' . date('Ym', time());
-        if ($by === 'day') $filename .= '_' . date('Ymd', time());
-        if ($by === 'year') $filename .= '_' . date('Y', time());
-        if ($by === 'hour') $filename .= '_' . date('YmdH', time());
-        if ($by === 'minute') $filename .= '_' . date('YmdHi', time());
-        if ($format === 'json') $data = json_encode($data, JSON_UNESCAPED_UNICODE);
-        if ($format === 'serialize') $data = serialize($data);
-        $filename .= '.log';
-        if (!is_file($filename)) file_put_contents($filename, '', FILE_APPEND);
-        chmod($filename, 0777);
-        file_put_contents($filename, $time . ' ' . print_r($data, true) . "\r\n", $flags);
-    }
-}
-
-if (!function_exists('ww_logs')) {
-    function ww_logs($filename, $data, $format = 'human-readable', $flags = FILE_APPEND, $by = 'month')
-    {
-        ww($data);
-        logs($filename, $data, $format, $flags, $by);
     }
 }
 
@@ -778,5 +769,24 @@ if (!function_exists('replaceWith')) {
         }
         if ($position === 'right') $offset = -$replace_len;
         return substr_replace($str, $replace_str, $offset, $replace_len);
+    }
+}
+
+if (!function_exists('dt')) {
+    /**
+     * 快速格式化时间戳
+     * @param false $timestamp
+     * @param string $delimiter
+     * @param false $short 是否包含时分秒
+     * @return false|string
+     */
+    function dt($timestamp = false, $delimiter = '-', $short = false)
+    {
+        if ($timestamp === false) $timestamp = time();
+        if ($short) {
+            return date("Y{$delimiter}m{$delimiter}d", $timestamp);
+        } else {
+            return date("Y{$delimiter}m{$delimiter}d H:i:s", $timestamp);
+        }
     }
 }

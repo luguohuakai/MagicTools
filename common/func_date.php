@@ -6,12 +6,12 @@
  * Time: 13:46
  */
 
-if (!function_exists('humanity_time')) {
+if (!function_exists('humanityTime')) {
     /**
      * @param int $timestamp 时间戳
      * @return string 返回更人性化时间
      */
-    function humanity_time($timestamp)
+    function humanityTime($timestamp)
     {
         $now = time();
         $diff = $now - $timestamp;
@@ -43,13 +43,13 @@ if (!function_exists('humanity_time')) {
     }
 }
 
-if (!function_exists('date_simple')) {
+if (!function_exists('dateSimple')) {
     /**
      * @param bool $timestamp
      * @param bool $short 是否包含时分秒
      * @return false|string
      */
-    function date_simple($timestamp = false, $short = false)
+    function dateSimple($timestamp = false, $short = false)
     {
         if ($timestamp === false) $timeStamp = time();
         if ($short) {
@@ -60,8 +60,8 @@ if (!function_exists('date_simple')) {
     }
 }
 
-if (!function_exists('second_to_humanity')) {
-    function second_to_humanity($timestamp, $simple = false)
+if (!function_exists('second2Humanity')) {
+    function second2Humanity($timestamp, $simple = false)
     {
         $day = floor($timestamp / 86400);
         $hour = floor($timestamp % 86400 / 3600);

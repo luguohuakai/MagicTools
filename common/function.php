@@ -602,23 +602,24 @@ if (!function_exists('isMobilePhone')) {
     }
 }
 
-if (!function_exists('fileSizeFormat')) {
+if (!function_exists('dataSizeFormat')) {
     /**
-     * 存储容量转化 B - KB - MB - GB - TB - PB
+     * 存储容量转化 B - KB - MB - GB - TB - PB - ...
      * @param int $size B
      * @param int $dec 保留小数位数
      * @return string
      */
-    function fileSizeFormat($size = 0, $dec = 2)
+    function dataSizeFormat($size = 0, $dec = 2)
     {
-        $unit = array('B', 'KB', 'MB', 'GB', 'TB', 'PB');
+        if (!is_numeric($size) || $size < 0) return false;
+        $unit = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB', 'NB', 'DB', 'CB', 'XB'];
         $pos = 0;
         while ($size >= 1024) {
             $size /= 1024;
             $pos++;
         }
         $result['size'] = round($size, $dec);
-        $result['unit'] = $unit[$pos];
+        $result['unit'] = isset($unit[$pos]) ? $unit[$pos] : '--';
         return $result['size'] . $result['unit'];
     }
 }

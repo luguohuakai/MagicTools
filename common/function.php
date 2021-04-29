@@ -791,3 +791,30 @@ if (!function_exists('dt')) {
         }
     }
 }
+
+if (!function_exists('rateLimit')) {
+    /**
+     * 请求速率限制
+     * @param int $seconds 秒数
+     * @param int $times 最大请求次数
+     * @return bool|string
+     */
+    function rateLimit($seconds = 10, $times = 1)
+    {
+        $key = 'rate_limit:' . md5($_SERVER['REMOTE_ADDR'] . $_SERVER['REQUEST_URI'] . json_encode($_GET) . json_encode($_POST));
+        $rds = Rds();
+        $v = $rds->get($key);
+        if ($v) {
+            $arr = explode(',', $v);
+            if ($arr[1] < $times) {
+                $rds->set($key, $arr[0] . ',' . ($arr[1] + 1), time() - $arr[0]);
+                return true;
+            } else {
+                return "请求太频繁,请稍后再试[$seconds,$times]";
+            }
+        } else {
+            $rds->set($key, time() . ',1', $seconds);
+            return true;
+        }
+    }
+}

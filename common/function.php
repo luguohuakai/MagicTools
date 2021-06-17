@@ -395,6 +395,12 @@ if (!function_exists('ed')) {
 if (!function_exists('exportAsCsv')) {
     /**
      * @param $data
+     * [
+     *     ['时间' => '2020-4', '人数' => 35, '天数' => 98],
+     *     ['时间' => '2020-5', '人数' => 44, '天数' => 66],
+     *     ['时间' => '2020-6', '人数' => 55, '天数' => 45],
+     *     ['时间' => '2020-7', '人数' => 77, '天数' => 78],
+     * ]
      * @param string $filename
      */
     function exportAsCsv($data, $filename = '')

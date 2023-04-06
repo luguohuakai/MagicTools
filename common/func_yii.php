@@ -24,3 +24,21 @@ function yiiParams($key = false, $default = null)
     if ($value === null && $default !== null) return $default;
     return $value;
 }
+
+function yiiList($active_query, $page, $size, $where = null, $select = null, $order_by = 'id desc')
+{
+    if (!($active_query instanceof ActiveQuery)) return false;
+    if (is_array($where) && !empty($where)) {
+        if (is_array($where[0])) {
+            foreach ($where as $v) {
+                $active_query->andWhere($v);
+            }
+        } else {
+            $active_query->andWhere($where);
+        }
+    }
+    if ($select !== null) $active_query->select($select);
+    $re['extra'] = $p = page($active_query->count(), $page, $size);
+    $re['data'] = $active_query->offset($p->offset)->limit($p->limit)->orderBy($order_by)->asArray()->all();
+    return $re['data'] ? $re : false;
+}

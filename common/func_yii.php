@@ -42,3 +42,8 @@ function yiiList($active_query, $page, $size, $where = null, $select = null, $or
     $re['data'] = $active_query->offset($p->offset)->limit($p->limit)->orderBy($order_by)->asArray()->all();
     return $re['data'] ? $re : false;
 }
+
+function yiiT($content, $app = 'app', $params = [], $language = null)
+{
+    return Yii::t($app, $content, $params, $language);
+}
